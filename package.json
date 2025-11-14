@@ -8,7 +8,7 @@
     "start": "node dist/server.js"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.21.0",
+    "@modelcontextprotocol/sdk": "^1.22.0",
     "dotenv": "^16.4.5",
     "express": "^5.1.0",
     "pino": "^10.1.0",
