@@ -197,7 +197,7 @@ export function createApiRoute(config: ApiRouteConfig) {
 }
 
 interface ClientRequestOptions {
-  type: PendingRequestType;
+  type: PendingRequestType | string;
   clientId: string;
   payload?: Record<string, any>;
   timeout?: number;

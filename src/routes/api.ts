@@ -59,6 +59,11 @@ export const apiRoutes = (app: express.Application, server: McpServer): void => 
         limit: z.number().int().positive().max(100).default(5).optional(),
     };
 
+    const chatArrayArgs = {
+        ...baseArgs,
+        message: z.string(),
+    };
+
     server.registerTool(
         'rolls',
         {
@@ -102,6 +107,51 @@ export const apiRoutes = (app: express.Application, server: McpServer): void => 
             };
         },
     );
+
+        server.registerTool(
+        'chat-message',
+        {
+            title: 'Send Chat Message',
+            description: 'Send Chat Message for a Foundry client',
+            inputSchema: chatArrayArgs,
+            outputSchema: FIX_outputArgs,
+            annotations: {
+                title: 'Safe logMessage',
+                readOnlyHint: true,
+                destructiveHint: false, // 기본값은 true라서 함께 명시해 줘도 좋습니다
+                idempotentHint: true    // 같은 입력 반복 호출해도 영향 없음을 표시
+            }
+        },
+        async (chatArrayArgs) => {
+            const payload: Record<string, any> = {};
+            const { clientId, message } = chatArrayArgs;
+            if (typeof message === 'string') {
+                payload.message = message;
+            }
+
+            try {
+                const response = await sendClientRequest({
+                    type: 'chat-message',
+                    clientId,
+                    payload,
+                });
+
+                const output = {
+                    clientId: response.clientId,
+                    requestId: response.requestId,
+                    data: response.data
+                }
+
+                return {
+                    content: [{ type: 'text', text: 'Success' }],
+                    structuredContent: output
+                };
+            } catch (err) {
+                return formatToolError(err, clientId);
+            };
+        },
+    );
+    
 
     // Setup WebSocket message handlers to route responses back to API requests
     function setupMessageHandlers() {

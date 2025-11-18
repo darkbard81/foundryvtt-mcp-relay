@@ -58,7 +58,7 @@ export interface PendingRequest {
     res?: express.Response;
     resolve?: (response: any) => void;
     reject?: (error: any) => void;
-    type: PendingRequestType;
+    type: PendingRequestType | string;
     clientId?: string;
     uuid?: string;
     path?: string;
