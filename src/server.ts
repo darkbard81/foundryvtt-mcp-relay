@@ -53,8 +53,17 @@ apiRoutes(app, server);
 // 1) 오디오 파일 저장 폴더 경로
 const audioDir = path.join(process.cwd(), "tts_output");
 
-// 2) /tts 경로를 오디오 파일 공개 경로로 지정
-app.use("/tts", express.static(audioDir));
+// 2) /tts 경로를 오디오 파일 공개 경로로 지정 (CORS 허용)
+app.use(
+    "/tts",
+    (req, res, next) => {
+        res.header("Access-Control-Allow-Origin", "*");
+        res.header("Access-Control-Allow-Methods", "GET, OPTIONS");
+        res.header("Access-Control-Allow-Headers", "Content-Type");
+        next();
+    },
+    express.static(audioDir)
+);
 
 /**
  * Initializes all server services in the correct order.

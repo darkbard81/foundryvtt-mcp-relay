@@ -2,7 +2,8 @@ import { GoogleGenAI } from '@google/genai';
 import mime from 'mime';
 import { writeFile } from 'fs';
 import crypto from 'crypto';
-import { log } from '../utils/logger';
+import { log } from '../utils/logger.js';
+import { URL } from 'node:url';
 
 function saveBinaryFile(fileName: string, content: Buffer) {
     writeFile(fileName, content, 'utf8', (err) => {
@@ -14,12 +15,16 @@ function saveBinaryFile(fileName: string, content: Buffer) {
     });
 }
 
+function normalizeUri(rawUrl: string, base = 'https://mcp.krdp.ddns.net') {
+  return new URL(rawUrl, base).toString(); // base는 상대경로일 때만 필요
+}
+
 export async function createAudioTTS(message: string): Promise<string> {
     const genAI = new GoogleGenAI({
         apiKey: process.env.GOOGLE_GENAI_API_KEY || '',
-        vertexai: true,
-        project: process.env.GOOGLE_GENAI_PROJECT_ID || '',
-        location: process.env.GOOGLE_GENAI_PROJECT_LOCATION || '',
+        // vertexai: true,
+        // project: process.env.GOOGLE_GENAI_PROJECT_ID || '',
+        // location: process.env.GOOGLE_GENAI_PROJECT_LOCATION || '',
     });
 
     const config = {
@@ -30,7 +35,7 @@ export async function createAudioTTS(message: string): Promise<string> {
         speechConfig: {
             voiceConfig: {
                 prebuiltVoiceConfig: {
-                    voiceName: 'Sadachbia',
+                    voiceName: 'Achernar',
                 }
             }
         },
@@ -41,7 +46,7 @@ export async function createAudioTTS(message: string): Promise<string> {
             role: 'user',
             parts: [
                 {
-                    text: `{$message}`,
+                    text: `${message}`,
                 },
             ],
         },
@@ -54,8 +59,7 @@ export async function createAudioTTS(message: string): Promise<string> {
     });
     let fileIndex = 0;
 
-    const uuid = () => crypto.randomUUID();
-    const filePath = `tts_output/${uuid}`;
+    const filePath = crypto.randomUUID();
     let fileURL: string = '';
     for await (const chunk of response) {
         if (!chunk.candidates || !chunk.candidates[0].content || !chunk.candidates[0].content.parts) {
@@ -70,8 +74,9 @@ export async function createAudioTTS(message: string): Promise<string> {
                 fileExtension = 'wav';
                 buffer = convertToWav(inlineData.data || '', inlineData.mimeType || '');
             }
-            saveBinaryFile(`${fileName}.${fileExtension}`, buffer);
-            fileURL = `https://mcp.krdp.ddns.net/tts/${fileName}.${fileExtension}`;
+            saveBinaryFile(`tts_output/${fileName}.${fileExtension}`, buffer);
+            fileURL = `tts/${fileName}.${fileExtension}`;
+            fileURL = normalizeUri(fileURL);
             log.info(`Audio TTS file saved: ${fileURL}`);
         }
         else {
