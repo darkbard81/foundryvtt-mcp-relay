@@ -16,19 +16,24 @@ function saveBinaryFile(fileName: string, content: Buffer) {
 }
 
 function normalizeUri(rawUrl: string, base = 'https://mcp.krdp.ddns.net') {
-  return new URL(rawUrl, base).toString(); // base는 상대경로일 때만 필요
+    return new URL(rawUrl, base).toString(); // base는 상대경로일 때만 필요
 }
 
 export async function createAudioTTS(message: string): Promise<string> {
     const genAI = new GoogleGenAI({
         apiKey: process.env.GOOGLE_GENAI_API_KEY || '',
-        // vertexai: true,
+        vertexai: true,
         // project: process.env.GOOGLE_GENAI_PROJECT_ID || '',
         // location: process.env.GOOGLE_GENAI_PROJECT_LOCATION || '',
     });
 
     const config = {
         temperature: 1,
+        systemInstruction:
+        {
+            role: 'system',
+            parts: [{ text: 'Pronounce breathy sounds like "aah", "mmh", "eung" naturally and softly. and sexy.' }],
+        },
         responseModalities: [
             'audio',
         ],
@@ -66,7 +71,7 @@ export async function createAudioTTS(message: string): Promise<string> {
             continue;
         }
         if (chunk.candidates?.[0]?.content?.parts?.[0]?.inlineData) {
-            const fileName = `${filePath}}_${fileIndex++}`;
+            const fileName = `${filePath}_${fileIndex++}`;
             const inlineData = chunk.candidates[0].content.parts[0].inlineData;
             let fileExtension = mime.getExtension(inlineData.mimeType || '');
             let buffer = Buffer.from(inlineData.data || '', 'base64');
