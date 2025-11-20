@@ -13,7 +13,7 @@ import path from "path";
 // Create an MCP server
 const server = new McpServer({
     name: 'fvtt-mcp-server',
-    version: '1.0.0'
+    version: '1.0.4'
 });
 
 // Set up Express and HTTP transport
