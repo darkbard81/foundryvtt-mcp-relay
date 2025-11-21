@@ -11,7 +11,7 @@ let client: GoogleGenAI | null = null;
  * Returns a singleton GoogleGenAI client or null when the API key is missing.
  * Always checks the configured key before attempting initialization.
  */
-export function getGenAI() {
+export function getGenAI(): GoogleGenAI | null {
     if (!cfg.GOOGLE_GENAI_API_KEY) {
         return null;
     }
@@ -52,7 +52,7 @@ function saveBinaryFile(fileName: string, content: Buffer) {
  * @param rawUrl Relative or absolute URL part.
  * @param base Base URL to resolve against, defaults to cfg.BASE_URL.
  */
-function normalizeUri(rawUrl: string, base = cfg.BASE_URL ) {
+function normalizeUri(rawUrl: string, base = cfg.BASE_URL ): string {
     return new URL(rawUrl, base).toString(); // base는 상대경로일 때만 필요
 }
 

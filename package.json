@@ -1,6 +1,6 @@
 {
   "name": "foundry-mcp-relay",
-  "version": "1.0.0",
+  "version": "1.0.4",
   "type": "module",
   "scripts": {
     "dev": "node --import ./loader-register.mjs src/server.ts",
