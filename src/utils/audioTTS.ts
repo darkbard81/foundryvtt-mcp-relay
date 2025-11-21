@@ -6,10 +6,64 @@ import { log } from '../utils/logger.js';
 import { URL } from 'node:url';
 import { cfg } from '../config.js';
 
+/**
+ * Supported Gemini TTS prebuilt voices.
+ */
+export enum VoiceActor {
+    Achernar = 'Achernar',            // 여성: 부드럽고 차분함
+    Aoede = 'Aoede',                  // 여성: 친근하고 대화체
+    Autonoe = 'Autonoe',              // 여성: 명확하고 밝음
+    Callirhoe = 'Callirhoe',          // 여성: 전문적이고 또렷함
+    Despina = 'Despina',              // 여성: 따뜻하고 친근함
+    Erinome = 'Erinome',              // 여성: 지적이고 차분함
+    Gacrux = 'Gacrux',                // 여성: 성숙하고 침착함
+    Kore = 'Kore',                    // 여성: 자신감 있고 열정적
+    Laomedeia = 'Laomedeia',          // 여성: 탐구적이고 대화체
+    Leda = 'Leda',                    // 여성: 차분하고 전문적
+    Pulcherrima = 'Pulcherrima',      // 여성: 활기차고 젊은 느낌
+    Sulafar = 'Sulafar',              // 여성: 따뜻함 (Sulafat으로도 표기)
+    Vindemiatrix = 'Vindemiatrix',    // 여성: 부드럽고 온화함
+    Zephyr = 'Zephyr',                // 여성: 활기차고 밝음
+
+    Achird = 'Achird',                // 남성: 친근하고 젊은 느낌
+    Algenib = 'Algenib',              // 남성: 거칠고 개성 있음
+    Algieba = 'Algieba',              // 남성: 부드러운 영국식 억양 느낌
+    Alnilam = 'Alnilam',              // 남성: 단호하고 명확함
+    Charon = 'Charon',                // 남성: 깊고 신뢰감 있는 저음
+    Enceladus = 'Enceladus',          // 남성: 부드럽고 숨소리가 섞인 톤
+    Fenrir = 'Fenrir',                // 남성: 빠르고 열정적
+    Iapetus = 'Iapetus',              // 남성: 굵고 힘찬 톤
+    Orus = 'Orus',                    // 남성: 단호하고 신뢰감 있음
+    Puck = 'Puck',                    // 남성: 장난기 있고 활기참
+    Rasalgethi = 'Rasalgethi',        // 남성: 정보 전달에 적합
+    Sadachbia = 'Sadachbia',          // 남성: 생동감 있고 활기참
+    Sadaltager = 'Sadaltager',        // 남성: 지적이고 전문적
+    Schedar = 'Schedar',              // 남성: 차분하고 균형 잡힘
+    Umbriel = 'Umbriel',              // 남성: 차분하고 편안함
+    Zubenelgenubi = 'Zubenelgenubi',  // 남성: 캐주얼하고 편안함
+}
+
+/**
+ * Supported Gemini TTS style tones.
+ */
+export enum StyleTone {
+    BattleCry = 'battle cry',
+    Calm = 'calm',
+    Dramatic = 'dramatic',
+    Formal = 'formal',
+    Friendly = 'friendly',
+    Heroic = 'heroic',
+    Hitomi = 'hitomi',
+    Narration = 'narration',
+    Normal = 'according to script',
+    Whisper = 'whisper',
+}
+
 let client: GoogleGenAI | null = null;
 /**
  * Returns a singleton GoogleGenAI client or null when the API key is missing.
  * Always checks the configured key before attempting initialization.
+ * @returns GoogleGenAI client instance, or null when unavailable.
  */
 export function getGenAI(): GoogleGenAI | null {
     if (!cfg.GOOGLE_GENAI_API_KEY) {
@@ -23,7 +77,7 @@ export function getGenAI(): GoogleGenAI | null {
                 ? { message: err.message, stack: err.stack }
                 : { err };
             log.error('Failed to initialize GoogleGenAI client', meta);
-            client = null;
+            return null;
         }
     }
     return client;
@@ -34,7 +88,7 @@ export function getGenAI(): GoogleGenAI | null {
  * @param fileName Relative path to save the file under `tts_output`.
  * @param content Audio payload to write.
  */
-function saveBinaryFile(fileName: string, content: Buffer) {
+function saveBinaryFile(fileName: string, content: Buffer): void {
     writeFile(fileName, content, 'utf8', (err) => {
         if (err) {
             log.error(`Error writing file ${fileName}`, {
@@ -51,8 +105,9 @@ function saveBinaryFile(fileName: string, content: Buffer) {
  * Normalizes a relative URL into an absolute URL using the configured base.
  * @param rawUrl Relative or absolute URL part.
  * @param base Base URL to resolve against, defaults to cfg.BASE_URL.
+ * @returns Absolute URL string.
  */
-function normalizeUri(rawUrl: string, base = cfg.BASE_URL ): string {
+function normalizeUri(rawUrl: string, base = cfg.BASE_URL): string {
     return new URL(rawUrl, base).toString(); // base는 상대경로일 때만 필요
 }
 
@@ -62,8 +117,14 @@ function normalizeUri(rawUrl: string, base = cfg.BASE_URL ): string {
  * @param message Text content to synthesize.
  * @returns Absolute URL string for the generated audio, or empty string on failure.
  */
-export async function createAudioTTS(message: string): Promise<string> {
+export async function createAudioTTS(message: string, temperature: number, styleTone: StyleTone, voiceActor: VoiceActor): Promise<string> {
     let fileURL = '';
+    
+    let conversionStyleTone: string = styleTone;
+    // 'Hitomi' 스타일은 별도 처리
+    if (styleTone === StyleTone.Hitomi) {
+        conversionStyleTone = 'sexy with moan';
+    }
 
     const genAI = getGenAI();
     if (!genAI) {
@@ -72,25 +133,25 @@ export async function createAudioTTS(message: string): Promise<string> {
     }
 
     const config = {
-        temperature: 2,
+        temperature: temperature,
         responseModalities: [
             'audio',
         ],
         speechConfig: {
             voiceConfig: {
                 prebuiltVoiceConfig: {
-                    voiceName: 'Achernar',
+                    voiceName: voiceActor,
                 }
             }
         },
     };
-    const model = 'gemini-2.5-flash-preview-tts';
+    const model = cfg.AUDIO_MODEL;
     const contents = [
         {
             role: 'user',
             parts: [
                 {
-                    text: `${message}`,
+                    text: `Read ${styleTone} tone: ${message}`,
                 },
             ],
         },
@@ -129,7 +190,7 @@ export async function createAudioTTS(message: string): Promise<string> {
 
     const combinedBuffer = Buffer.concat(collectedBuffers);
     let fileExtension = mime.getExtension(collectedMimeType || '');
-    let fileData = combinedBuffer;
+    let fileData: Buffer<ArrayBufferLike> = combinedBuffer;
 
     if (!fileExtension) {
         fileExtension = 'wav';
@@ -156,7 +217,7 @@ interface WavConversionOptions {
  * @param mimeType Mime type string containing format details (e.g., channels/rate).
  * @returns Buffer containing a complete WAV file.
  */
-function convertToWav(rawData: string, mimeType: string) {
+function convertToWav(rawData: string, mimeType: string): Buffer {
     const options = parseMimeType(mimeType)
     const buffer = Buffer.from(rawData, 'base64');
     const wavHeader = createWavHeader(buffer.length, options);
@@ -169,7 +230,7 @@ function convertToWav(rawData: string, mimeType: string) {
  * @param mimeType Mime type from the TTS response (e.g., audio/L16;rate=24000).
  * @returns Parsed channel, sample rate, and bit depth info.
  */
-function parseMimeType(mimeType: string) {
+function parseMimeType(mimeType: string): WavConversionOptions {
     const [fileType, ...params] = mimeType.split(';').map(s => s.trim());
     const [_, format] = fileType.split('/');
 
@@ -190,7 +251,6 @@ function parseMimeType(mimeType: string) {
             options.sampleRate = parseInt(value, 10);
         }
     }
-
     return options as WavConversionOptions;
 }
 
@@ -200,7 +260,7 @@ function parseMimeType(mimeType: string) {
  * @param options WAV format parameters such as channels, sample rate, and bit depth.
  * @returns Buffer containing a 44-byte WAV header.
  */
-function createWavHeader(dataLength: number, options: WavConversionOptions) {
+function createWavHeader(dataLength: number, options: WavConversionOptions): Buffer {
     const {
         numChannels,
         sampleRate,

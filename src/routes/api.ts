@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { sendClientRequest } from './route-helpers.js';
 import { createAudioTTS } from '../utils/audioTTS.js';
+import { VoiceActor, StyleTone } from '../utils/audioTTS.js';
 
 export const VERSION = '2.0.13';
 
@@ -63,10 +64,10 @@ export const apiRoutes = (app: express.Application, server: McpServer): void => 
     const chatArrayArgs = {
         ...baseArgs,
         message: z.string(),
-        //Todo : voiceActor, styleTone 추가
-        //voiceActor: z.string().optional().default('Achernar'),
-        //styleTone: z.string().optional().default('narration'),
         audioTTS: z.boolean().optional().default(false),
+        temperature: z.number().min(0).max(2).optional().default(1),
+        styleTone: z.nativeEnum(StyleTone).optional().default(StyleTone.Narration),
+        voiceActor: z.nativeEnum(VoiceActor).optional().default(VoiceActor.Achernar),
     };
 
     server.registerTool(
@@ -173,12 +174,12 @@ export const apiRoutes = (app: express.Application, server: McpServer): void => 
         },
         async (chatArrayArgs) => {
             const payload: Record<string, any> = {};
-            const { clientId, message, audioTTS } = chatArrayArgs;
+            const { clientId, message, audioTTS, temperature, styleTone, voiceActor } = chatArrayArgs;
             if (typeof message === 'string') {
                 payload.message = message;
             }
             if (typeof audioTTS === 'boolean' && audioTTS === true) {
-                payload.audioPath = await createAudioTTS(message);
+                payload.audioPath = await createAudioTTS(message, temperature, styleTone, voiceActor);
             }
             try {
                 const response = await sendClientRequest({

@@ -6,6 +6,7 @@ const toInt = (v: string | undefined, d: number) =>
 
 export const cfg = {
   API_KEY: process.env.MCP_SERVER_API_KEY,
+  AUDIO_MODEL: process.env.AUDIO_MODEL ?? 'gemini-2.5-flash-preview-tts',
   AUDIO_OUTPUT_DIR: process.env.AUDIO_OUTPUT_DIR ?? 'tts_output',
   AUDIO_PATH: process.env.AUDIO_PATH ?? '/tts',
   BASE_URL: process.env.BASE_URL ?? 'http://localshost:3010',
