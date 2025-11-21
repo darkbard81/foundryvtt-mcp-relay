@@ -50,7 +50,7 @@ export const PENDING_REQUEST_TYPES = [
     'select', 'selected', 'file-system', 'upload-file', 'download-file',
     'get-actor-details', 'modify-item-charges', 'use-ability', 'use-feature', 'use-spell', 'use-item', 'modify-experience', 'add-item', 'remove-item',
     'get-folder', 'create-folder', 'delete-folder',
-    'chat-logs'
+    'chat-logs', 'search-tokens-result'
 ] as const;
   
 export type PendingRequestType = typeof PENDING_REQUEST_TYPES[number];
