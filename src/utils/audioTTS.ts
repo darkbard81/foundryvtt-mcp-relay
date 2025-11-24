@@ -49,6 +49,7 @@ export enum VoiceActor {
 export enum StyleTone {
     BattleCry = 'battle cry',
     Calm = 'calm',
+    Coquettish = 'coquettish',
     Dramatic = 'dramatic',
     Formal = 'formal',
     Friendly = 'friendly',
@@ -123,7 +124,7 @@ export async function createAudioTTS(message: string, temperature: number, style
     let conversionStyleTone: string = styleTone;
     // 'Hitomi' 스타일은 별도 처리
     if (styleTone === StyleTone.Hitomi) {
-        conversionStyleTone = 'sexy with moan';
+        conversionStyleTone = 'breathlessly rising, as if lifting something overwhelmingly heavy';
     }
 
     const genAI = getGenAI();
@@ -151,7 +152,7 @@ export async function createAudioTTS(message: string, temperature: number, style
             role: 'user',
             parts: [
                 {
-                    text: `Read ${styleTone} tone: ${message}`,
+                    text: `Read aloud in a ${styleTone} tone: ${message}`,
                 },
             ],
         },
