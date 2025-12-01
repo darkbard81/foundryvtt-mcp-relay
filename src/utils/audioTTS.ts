@@ -200,9 +200,12 @@ export async function createAudioTTS(message: string, temperature: number, style
     }
 
     const fileName = `${filePath}.${fileExtension}`;
-    saveBinaryFile(`${cfg.AUDIO_OUTPUT_DIR}/${fileName}`, fileData);
-    // fileURL = normalizeUri(`tts/${fileName}`);
-    fileURL = normalizeUri(`${cfg.AUDIO_PATH}/${fileName}`);
+    const audioDir = path.join(process.cwd(), cfg.FOUNDRY_DATA_PATH, cfg.AUDIO_OUTPUT_DIR);
+
+    saveBinaryFile(`${audioDir}/${fileName}`, fileData);
+    fileURL = cfg.FOUNDRY_DATA_PATH === ''
+        ? normalizeUri(`${cfg.AUDIO_PATH}/${fileName}`)
+        : path.join(cfg.AUDIO_OUTPUT_DIR, fileName);
     log.info(`Audio TTS file saved: ${fileURL}`);
 
     return fileURL;
