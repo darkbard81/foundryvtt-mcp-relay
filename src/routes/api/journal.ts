@@ -1,6 +1,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { baseArgs, FIX_outputArgs, formatToolError } from './common.js';
 import { sendClientRequest } from '../route-helpers.js';
+import { createImageGen } from '../../utils/audioTTS.js';
 import { z } from 'zod';
 
 // Bridge와 동일한 저널 데이터 형태 정의 (Foundry 의존 없이 직렬화된 데이터 기준)
@@ -141,7 +142,7 @@ export function registerJournalTools(server: McpServer): void {
 
     const pageDataSchema = z.object({
         name: z.string().describe('PageTitle'),
-        type: z.enum(['text','image','video']).default('text'), // text, image 등
+        type: z.enum(['text', 'image', 'video']).default('text'), // text, image 등
         title: z.object({
             show: z.boolean().default(false),
             level: z.number().int().default(1),
@@ -174,6 +175,11 @@ export function registerJournalTools(server: McpServer): void {
         journalId: z.string(),
         pageId: z.string().optional(),
         pageData: pageDataSchema.optional(),
+        imageprompt: z.string().optional().default(`(masterpiece, best quality:1.4), (high resolution),
+anime style, 1girl, female rogue, thief, assassin, solo, full body, dynamic action pose, JRPG,
+(anime face, beautiful detailed eyes:1.2), (oversize chest:2.3) (outfit emphasizing agility:1.3), light clothing, thin fabric, sleeveless, midriff, thigh highs,
+(elaborate flashy accessories:1.3), gold ornaments, gemstones, layered jewelry, sash, intricate leather belts, holding daggers,
+white background`)
     };
 
 
@@ -205,7 +211,7 @@ export function registerJournalTools(server: McpServer): void {
                 const output = {
                     clientId: response.clientId,
                     requestId: response.requestId,
-                    data: response.data
+                    data: response.data as JournalEntrySource
                 };
 
                 return {
@@ -274,13 +280,39 @@ export function registerJournalTools(server: McpServer): void {
             }
         },
         async (args) => {
-            const { clientId, action, journalId, pageId, pageData } = args;
+            const { clientId, action, journalId, pageId, pageData, imageprompt } = args;
             const payload: Record<string, any> = {
                 action,
                 journalId,
             };
             if (pageId) payload.pageId = pageId;
-            if (pageData) payload.pageData = pageData;
+            if (pageData) payload.pageData = { ...pageData };
+            if (
+                action === 'create' &&
+                pageData?.type === 'image' &&
+                !pageData.src &&
+                imageprompt
+            ) {
+                const src = await createImageGen(imageprompt, 1);
+                payload.pageData = { ...pageData, src };
+            }
+
+            if (
+                action === 'create' &&
+                pageData?.type === 'text' &&
+                imageprompt
+            ) {
+                const imageUrl = await createImageGen(imageprompt, 1);
+                const existingMarkdown = pageData.text?.markdown ?? '';
+                const imageLine = `![${pageData.name ?? 'image'}](${imageUrl})`;
+                payload.pageData = {
+                    ...pageData,
+                    text: {
+                        ...pageData.text,
+                        markdown: `${imageLine}\n${existingMarkdown}`
+                    }
+                };
+            }
 
             try {
                 const response = await sendClientRequest({

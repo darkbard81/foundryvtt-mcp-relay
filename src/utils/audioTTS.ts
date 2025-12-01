@@ -5,7 +5,8 @@ import crypto from 'crypto';
 import { log } from '../utils/logger.js';
 import { URL } from 'node:url';
 import { cfg } from '../config.js';
-
+import path from "path";
+import sharp from 'sharp';
 /**
  * Supported Gemini TTS prebuilt voices.
  */
@@ -120,7 +121,7 @@ function normalizeUri(rawUrl: string, base = cfg.BASE_URL): string {
  */
 export async function createAudioTTS(message: string, temperature: number, styleTone: StyleTone, voiceActor: VoiceActor): Promise<string> {
     let fileURL = '';
-    
+
     let conversionStyleTone: string = styleTone;
     // 'Hitomi' 스타일은 별도 처리
     if (styleTone === StyleTone.Hitomi) {
@@ -201,7 +202,7 @@ export async function createAudioTTS(message: string, temperature: number, style
     const fileName = `${filePath}.${fileExtension}`;
     saveBinaryFile(`${cfg.AUDIO_OUTPUT_DIR}/${fileName}`, fileData);
     // fileURL = normalizeUri(`tts/${fileName}`);
-    fileURL = normalizeUri(`${cfg.AUDIO_PATH}/${fileName}`); 
+    fileURL = normalizeUri(`${cfg.AUDIO_PATH}/${fileName}`);
     log.info(`Audio TTS file saved: ${fileURL}`);
 
     return fileURL;
@@ -290,4 +291,98 @@ function createWavHeader(dataLength: number, options: WavConversionOptions): Buf
     buffer.writeUInt32LE(dataLength, 40);         // Subchunk2Size
 
     return buffer;
+}
+
+export async function createImageGen(message: string, temperature: number): Promise<string> {
+    let fileURL = '';
+
+    const genAI = getGenAI();
+    if (!genAI) {
+        log.warn('Image generation skipped: Google GenAI client not initialized.');
+        return fileURL;
+    }
+
+    const config = {
+        temperature: temperature,
+        maxOutputTokens: 1290,
+        responseModalities: [
+            'IMAGE',
+            'TEXT',
+        ],
+        imageConfig: {
+            aspectRatio: "3:4",
+        },
+        systemInstruction: [
+            {
+                text: `for TRPG Journal`,
+            }
+        ],
+    };
+    const model = cfg.IMAGE_MODEL;
+    const contents = [
+        {
+            role: 'user',
+            parts: [
+                {
+                    text: `${message}`,
+                },
+            ],
+        },
+    ];
+
+    let response;
+    try {
+        response = await genAI.models.generateContentStream({ model, config, contents });
+    } catch (err) {
+        log.error(`Image generation failed: ${err instanceof Error ? err.message : String(err)}`);
+        return fileURL;
+    }
+
+    const filePath = crypto.randomUUID();
+    const collectedBuffers: Buffer[] = [];
+    let collectedMimeType = '';
+
+    // 스트리밍 청크를 모두 모아서 한 번에 파일로 저장
+    for await (const chunk of response) {
+        if (!chunk.candidates || !chunk.candidates[0].content || !chunk.candidates[0].content.parts) {
+            continue;
+        }
+        if (chunk.candidates?.[0]?.content?.parts?.[0]?.inlineData) {
+            const inlineData = chunk.candidates[0].content.parts[0].inlineData;
+            collectedMimeType ||= inlineData.mimeType || '';
+            const buffer = Buffer.from(inlineData.data || '', 'base64');
+            collectedBuffers.push(buffer);
+        }
+        else {
+            log.warn('Image generation chunk had no inlineData; skipping this chunk.');
+        }
+    }
+
+    if (!collectedBuffers.length) {
+        log.error('Image generation failed: no image data collected from response.');
+        return fileURL;
+    }
+
+    const combinedBuffer = Buffer.concat(collectedBuffers);
+    let fileExtension = mime.getExtension(collectedMimeType || '');
+    let fileData: Buffer<ArrayBufferLike> = await sharp(combinedBuffer).webp({
+        quality: 85,
+        alphaQuality: 95,
+        smartSubsample: true,
+        effort: 5,
+        preset: 'picture',
+    }).toBuffer();
+
+    fileExtension = 'webp';
+
+    const fileName = `${filePath}.${fileExtension}`;
+    const imageDir = path.join(process.cwd(), cfg.FOUNDRY_DATA_PATH, cfg.IMAGE_OUTPUT_DIR);
+
+    saveBinaryFile(`${imageDir}/${fileName}`, fileData);
+    fileURL = cfg.FOUNDRY_DATA_PATH === ''
+        ? normalizeUri(`${cfg.IMAGE_PATH}/${fileName}`)
+        : path.join(cfg.IMAGE_OUTPUT_DIR, fileName);
+    log.info(`Image Gen file saved: ${fileURL}`);
+
+    return fileURL;
 }

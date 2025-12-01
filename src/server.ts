@@ -56,7 +56,7 @@ wsRoutes(wss);
 apiRoutes(app, server);
 
 // === 정적 파일: TTS 오디오 ===
-const audioDir = path.join(process.cwd(), cfg.AUDIO_OUTPUT_DIR);
+const audioDir = path.join(process.cwd(), cfg.FOUNDRY_DATA_PATH, cfg.AUDIO_OUTPUT_DIR);
 
 app.use(
     cfg.AUDIO_PATH,
@@ -67,6 +67,20 @@ app.use(
         next();
     },
     express.static(audioDir)
+);
+
+// === 정적 파일: TTS 오디오 ===
+const imageDir = path.join(process.cwd(), cfg.FOUNDRY_DATA_PATH, cfg.IMAGE_OUTPUT_DIR);
+
+app.use(
+    cfg.IMAGE_PATH,
+    (req, res, next) => {
+        res.header("Access-Control-Allow-Origin", "*");
+        res.header("Access-Control-Allow-Methods", "GET, OPTIONS");
+        res.header("Access-Control-Allow-Headers", "Content-Type");
+        next();
+    },
+    express.static(imageDir)
 );
 
 async function initializeServices() {
