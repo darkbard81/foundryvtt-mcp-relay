@@ -58,11 +58,11 @@ jobs:
             COMMITS=$(git log --pretty=format:"- [%s](https://github.com/${{ github.repository }}/commit/%H)" ${PREVIOUS_TAG}..HEAD --reverse)
           fi
           
-          # Format release notes
+          # Format release notes and expose via outputs
           FORMATTED_NOTES="## Changes\n${COMMITS}"
-          echo "RELEASE_NOTES<<EOF" >> $GITHUB_ENV
-          echo -e "${FORMATTED_NOTES}" >> $GITHUB_ENV
-          echo "EOF" >> $GITHUB_ENV
+          echo "release_notes<<EOF" >> "$GITHUB_OUTPUT"
+          echo -e "${FORMATTED_NOTES}" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
 
       - name: Build server
         env:
@@ -117,4 +117,4 @@ jobs:
           prerelease: ${{ steps.release_type.outputs.prerelease == 'true' }}
           token: ${{ secrets.GITHUB_TOKEN }}
           tag: ${{ github.ref_name }}
-          body: ${{ env.RELEASE_NOTES }}
+          body: ${{ steps.generate_notes.outputs.release_notes }}
