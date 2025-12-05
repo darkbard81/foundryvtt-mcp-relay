@@ -6,6 +6,7 @@ import axios from 'axios';
 import { promises as fs } from 'fs';
 import { log } from './utils/logger.js';
 import { cfg } from './config.js';
+import crypto from 'crypto';
 
 const sessions = new Map<string, { timestamp: number; scope?: string }>();
 const tokenStorePath = path.join(process.cwd(), 'token-store.json');
@@ -73,6 +74,36 @@ export const authenticateMCP: RequestHandler = (req, res, next) => {
     (req as any).user = match.user;
     return next();
 };
+
+// 직렬화된 요청 해시를 짧은 TTL 동안 기억해 중복 호출을 차단하는 미들웨어
+const dedupeCache = new Map<string, NodeJS.Timeout>();
+export function createPayloadDedupeMiddleware(ttlMs = 10000): RequestHandler {
+    return (req, res, next) => {
+        // GET/HEAD는 멱등성으로 취급해 패스
+        if (req.method === 'GET' || req.method === 'HEAD') {
+            return next();
+        }
+
+        // 요청 전체를 직렬화해 해시 키 생성
+        const payload = {
+            method: req.method,
+            url: req.originalUrl,
+            body: req.body ?? null,
+            query: req.query ?? null
+        };
+        const hash = crypto.createHash('sha256').update(JSON.stringify(payload)).digest('hex');
+
+        if (dedupeCache.has(hash)) {
+            log.warn(`[Middleware] Duplicate payload detected within ${ttlMs}ms window`);
+            return res.status(409).json({ error: 'duplicate_request' });
+        }
+
+        // TTL 이후 자동 제거
+        const timeout = setTimeout(() => dedupeCache.delete(hash), ttlMs);
+        dedupeCache.set(hash, timeout);
+        return next();
+    };
+}
 
 export function registerOAuthRoutes(app: Application): void {
     if (!cfg.GITHUB_CLIENT_ID) {

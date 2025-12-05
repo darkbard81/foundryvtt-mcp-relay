@@ -34,7 +34,6 @@ export const cfg = {
   MCP_PATH: process.env.MCP_PATH ?? '/sse',
   MODULE_VERSION: process.env.MODULE_VERSION ?? '1.0.0',
   NODE_ENV: process.env.NODE_ENV ?? 'development',
-  PING_INTERVAL_MS: toInt(process.env.PING_INTERVAL_MS, 20_000),
   PORT: toInt(process.env.WS_PORT, 3010),
   WEBSOCKET_PING_INTERVAL_MS: toInt(process.env.WEBSOCKET_PING_INTERVAL_MS, 20_000),
   WS_PATH: process.env.WS_PATH ?? '/relay',

@@ -8,7 +8,7 @@ import { apiRoutes } from "./routes/api.js";
 import { cfg } from './config.js';
 import { wsRoutes } from "./routes/websocket.js";
 import { log } from "./utils/logger.js";
-import { authenticateMCP, registerOAuthRoutes } from "./oAuth.js";
+import { authenticateMCP, createPayloadDedupeMiddleware, registerOAuthRoutes } from "./oAuth.js";
 
 // === 인스턴스 준비: MCP + 환경 필수값 확인 ===
 const server = new McpServer({
@@ -31,7 +31,10 @@ app.use(express.json());
 
 registerOAuthRoutes(app);
 
-app.post(cfg.MCP_PATH, authenticateMCP, async (req, res) => {
+// 중복 payload 재실행 방지용 간단 멱등 미들웨어 (짧은 TTL)
+const dedupeMiddleware = createPayloadDedupeMiddleware(10000);
+
+app.post(cfg.MCP_PATH, dedupeMiddleware, authenticateMCP, async (req, res) => {
     log.debug(`[MCP] Incoming POST ${req.originalUrl} body=${JSON.stringify(req.body ?? {})}`);
     // 요청별 새로운 Transport로 request ID 충돌 방지
     const transport = new StreamableHTTPServerTransport({

@@ -316,13 +316,16 @@ export async function createImageGen(message: string, temperature: number): Prom
 
     const combinedBuffer = Buffer.concat(collectedBuffers);
     let fileExtension = mime.getExtension(collectedMimeType || '');
-    let fileData: Buffer<ArrayBufferLike> = await sharp(combinedBuffer).webp({
-        quality: 85,
-        alphaQuality: 95,
-        smartSubsample: true,
-        effort: 5,
-        preset: 'picture',
-    }).toBuffer();
+    let fileData: Buffer<ArrayBufferLike> =
+        await sharp(combinedBuffer)
+            .unflatten()                  // Pure White to Transparent
+            .webp({
+                quality: 85,
+                alphaQuality: 100,
+                smartSubsample: true,
+                effort: 5,
+                preset: 'picture',
+            }).toBuffer();
 
     fileExtension = 'webp';
 
