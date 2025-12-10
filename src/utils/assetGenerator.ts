@@ -243,7 +243,7 @@ function createWavHeader(dataLength: number, options: WavConversionOptions): Buf
     return buffer;
 }
 
-export async function createImageGen(message: string, temperature: number): Promise<string> {
+export async function createImageGen(message: string, temperature: number, convURL: boolean): Promise<string> {
     let fileURL = '';
 
     const genAI = getGenAI();
@@ -261,11 +261,11 @@ export async function createImageGen(message: string, temperature: number): Prom
             // 'TEXT',
         ],
         imageConfig: {
-            aspectRatio: "3:4",
+            aspectRatio: "2:3",
         },
         systemInstruction: [
             {
-                text: `for TRPG Journal`,
+                text: `for TRPG Image`,
             }
         ],
     };
@@ -316,13 +316,14 @@ export async function createImageGen(message: string, temperature: number): Prom
 
     const combinedBuffer = Buffer.concat(collectedBuffers);
     let fileExtension = mime.getExtension(collectedMimeType || '');
+
     let fileData: Buffer<ArrayBufferLike> =
         await sharp(combinedBuffer)
-            .unflatten()                  // Pure White to Transparent
+            .ensureAlpha()
             .webp({
                 quality: 85,
                 alphaQuality: 100,
-                smartSubsample: true,
+                smartSubsample: false,
                 effort: 5,
                 preset: 'picture',
             }).toBuffer();
@@ -333,9 +334,14 @@ export async function createImageGen(message: string, temperature: number): Prom
     const imageDir = path.join(process.cwd(), cfg.FOUNDRY_DATA_PATH, cfg.IMAGE_OUTPUT_DIR);
 
     saveBinaryFile(`${imageDir}/${fileName}`, fileData);
-    fileURL = cfg.FOUNDRY_DATA_PATH === ''
-        ? normalizeUri(`${cfg.IMAGE_PATH}/${fileName}`)
-        : path.join(cfg.IMAGE_OUTPUT_DIR, fileName);
+
+    if (convURL) {
+        fileURL = normalizeUri(`${cfg.IMAGE_PATH}/${fileName}`);
+    } else {
+        fileURL = cfg.FOUNDRY_DATA_PATH === ''
+            ? normalizeUri(`${cfg.IMAGE_PATH}/${fileName}`)
+            : path.join(cfg.IMAGE_OUTPUT_DIR, fileName);
+    };
     log.info(`Image Gen file saved: ${fileURL}`);
 
     return fileURL;

@@ -68,13 +68,19 @@ const wss = new WebSocketServer({ server: httpServer, path: cfg.WS_PATH });
 wsRoutes(wss);
 apiRoutes(app, server);
 
+// === CORS Array ===
+const allowed = cfg.CORS_URL.split(",").map((v) => v.trim()).filter(Boolean);
+
 // === 정적 파일: TTS 오디오 ===
 const audioDir = path.join(process.cwd(), cfg.FOUNDRY_DATA_PATH, cfg.AUDIO_OUTPUT_DIR);
 
 app.use(
     cfg.AUDIO_PATH,
     (req, res, next) => {
-        res.header("Access-Control-Allow-Origin", cfg.CORS_URL);
+        const origin = req.headers.origin;
+        if (origin && allowed.includes(origin)) {
+            res.header("Access-Control-Allow-Origin", origin);
+        }
         res.header("Access-Control-Allow-Methods", "GET, OPTIONS");
         res.header("Access-Control-Allow-Headers", "Content-Type");
         next();
@@ -88,7 +94,10 @@ const imageDir = path.join(process.cwd(), cfg.FOUNDRY_DATA_PATH, cfg.IMAGE_OUTPU
 app.use(
     cfg.IMAGE_PATH,
     (req, res, next) => {
-        res.header("Access-Control-Allow-Origin", cfg.CORS_URL);
+        const origin = req.headers.origin;
+        if (origin && allowed.includes(origin)) {
+            res.header("Access-Control-Allow-Origin", origin);
+        }
         res.header("Access-Control-Allow-Methods", "GET, OPTIONS");
         res.header("Access-Control-Allow-Headers", "Content-Type");
         next();
@@ -119,7 +128,7 @@ async function initializeServices() {
         });
 
     } catch (error) {
-        log.error(`Error starting server: ${error}`); 
+        log.error(`Error starting server: ${error}`);
         process.exit(1);
     }
 }

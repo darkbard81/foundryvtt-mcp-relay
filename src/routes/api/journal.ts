@@ -289,7 +289,7 @@ export function registerJournalTools(server: McpServer): void {
                 !pageData.src &&
                 imageprompt
             ) {
-                const src = await createImageGen(imageprompt, 1);
+                const src = await createImageGen(imageprompt, 1, false);
                 payload.pageData = { ...pageData, src };
             }
 
@@ -298,7 +298,7 @@ export function registerJournalTools(server: McpServer): void {
                 pageData?.type === 'text' &&
                 imageprompt
             ) {
-                const imageUrl = await createImageGen(imageprompt, 1);
+                const imageUrl = await createImageGen(imageprompt, 1, false);
                 const existingMarkdown = pageData.text?.markdown ?? '';
                 const imageLine = `![${pageData.name ?? 'image'}](${imageUrl})`;
                 payload.pageData = {
