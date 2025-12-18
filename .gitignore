@@ -6,6 +6,7 @@ tmp/
 temp/
 tts_output/
 token-store.json
+logs/
 
 # TypeScript artifacts
 *.tsbuildinfo

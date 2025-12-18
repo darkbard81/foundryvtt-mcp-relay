@@ -37,4 +37,5 @@ export const cfg = {
   PORT: toInt(process.env.WS_PORT, 3010),
   WEBSOCKET_PING_INTERVAL_MS: toInt(process.env.WEBSOCKET_PING_INTERVAL_MS, 20_000),
   WS_PATH: process.env.WS_PATH ?? '/relay',
+  WIDGET_AV_WS_PATH: process.env.WIDGET_AV_WS_PATH ?? '/widget-av',
 } as const;

@@ -7,6 +7,7 @@ import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/
 import { apiRoutes } from "./routes/api.js";
 import { cfg } from './config.js';
 import { wsRoutes } from "./routes/websocket.js";
+import { widgetAvWsRoutes } from "./routes/widgetAvWs.js";
 import { log } from "./utils/logger.js";
 import { authenticateMCP, createPayloadDedupeMiddleware, registerOAuthRoutes } from "./oAuth.js";
 
@@ -63,13 +64,52 @@ httpServer.setTimeout(0);
 httpServer.keepAliveTimeout = 0;
 httpServer.headersTimeout = 0;
 
+// === WebSocket 서버들 (noServer) ===
+const relayWss = new WebSocketServer({ noServer: true });
+wsRoutes(relayWss);
+
+const widgetAvWss = new WebSocketServer({ noServer: true });
+widgetAvWsRoutes(widgetAvWss);
+
+// === upgrade 라우팅 ===
+httpServer.on("upgrade", (req, socket, head) => {
+  try {
+    const url = new URL(req.url ?? "", `http://${req.headers.host}`);
+    const pathname = url.pathname;
+    log.info(`HttpServer Upgrage from ${pathname}`);
+
+    if (pathname === cfg.WS_PATH) {
+      relayWss.handleUpgrade(req, socket, head, (ws) => {
+        relayWss.emit("connection", ws, req);
+      });
+      return;
+    }
+
+    if (pathname === cfg.WIDGET_AV_WS_PATH) {
+      widgetAvWss.handleUpgrade(req, socket, head, (ws) => {
+        widgetAvWss.emit("connection", ws, req);
+      });
+      return;
+    }
+
+    socket.destroy();
+  } catch {
+    socket.destroy();
+  }
+});
 // === WebSocket 서버 ===
-const wss = new WebSocketServer({ server: httpServer, path: cfg.WS_PATH });
-wsRoutes(wss);
+// const wss = new WebSocketServer({ server: httpServer, path: cfg.WS_PATH });
+// wsRoutes(wss);
+
+// === WebSocket 서버 (Widget A/V) ===
+// const widgetAvWss = new WebSocketServer({ server: httpServer, path: cfg.WIDGET_AV_WS_PATH });
+// widgetAvWsRoutes(widgetAvWss);
+
 apiRoutes(app, server);
 
 // === CORS Array ===
 const allowed = cfg.CORS_URL.split(",").map((v) => v.trim()).filter(Boolean);
+const allowAnyOrigin = allowed.includes("*");
 
 // === 정적 파일: TTS 오디오 ===
 const audioDir = path.join(process.cwd(), cfg.FOUNDRY_DATA_PATH, cfg.AUDIO_OUTPUT_DIR);
@@ -78,8 +118,8 @@ app.use(
     cfg.AUDIO_PATH,
     (req, res, next) => {
         const origin = req.headers.origin;
-        if (origin && allowed.includes(origin)) {
-            res.header("Access-Control-Allow-Origin", origin);
+        if (origin && (allowAnyOrigin || allowed.includes(origin))) {
+            res.header("Access-Control-Allow-Origin", allowAnyOrigin ? "*" : origin);
         }
         res.header("Access-Control-Allow-Methods", "GET, OPTIONS");
         res.header("Access-Control-Allow-Headers", "Content-Type");
@@ -95,8 +135,8 @@ app.use(
     cfg.IMAGE_PATH,
     (req, res, next) => {
         const origin = req.headers.origin;
-        if (origin && allowed.includes(origin)) {
-            res.header("Access-Control-Allow-Origin", origin);
+        if (origin && (allowAnyOrigin || allowed.includes(origin))) {
+            res.header("Access-Control-Allow-Origin", allowAnyOrigin ? "*" : origin);
         }
         res.header("Access-Control-Allow-Methods", "GET, OPTIONS");
         res.header("Access-Control-Allow-Headers", "Content-Type");

@@ -9,6 +9,16 @@ import path from "path";
 import sharp from 'sharp';
 import { VoiceActor, StyleTone } from '../types/types.js';
 
+export enum AspectRatio {
+    R1_1 = "1:1",
+    R2_3 = "2:3",
+    R3_2 = "3:2",
+    R3_4 = "3:4",
+    R4_3 = "4:3",
+    R9_16 = "9:16",
+    R16_9 = "16:9",
+    R21_9 = "21:9",
+}
 
 /**
  * Returns a singleton GoogleGenAI client or null when the API key is missing.
@@ -243,8 +253,9 @@ function createWavHeader(dataLength: number, options: WavConversionOptions): Buf
     return buffer;
 }
 
-export async function createImageGen(message: string, temperature: number, convURL: boolean): Promise<string> {
+export async function createImageGen(message: string, temperature: number, convURL: boolean, aspectRatio?: AspectRatio): Promise<string> {
     let fileURL = '';
+    let aspectRatio_lo: AspectRatio = aspectRatio ?? AspectRatio.R2_3;
 
     const genAI = getGenAI();
     if (!genAI) {
@@ -261,7 +272,7 @@ export async function createImageGen(message: string, temperature: number, convU
             // 'TEXT',
         ],
         imageConfig: {
-            aspectRatio: "2:3",
+            aspectRatio: `${aspectRatio_lo}`,
         },
         systemInstruction: [
             {

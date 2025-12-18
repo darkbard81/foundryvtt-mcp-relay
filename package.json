@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "LOG_LEVEL=debug node --watch --import ./loader-register.mjs src/server.ts",
-    "dev2": "LOG_LEVEL=debug node --import ./loader-register.mjs src/server.ts",
+    "dev2": "mkdir -p logs && LOG_LEVEL=debug node --import ./loader-register.mjs src/server.ts 2>&1 | tee -a logs/dev2-$(date +%F_%H-%M-%S).log",
     "build": "tsc",
     "check": "tsc --noEmit",
     "start": "node dist/server.js"
