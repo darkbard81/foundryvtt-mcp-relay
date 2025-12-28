@@ -126,7 +126,7 @@ export function registerChatMsgTools(server: McpServer): void {
             inputSchema: chatArrayArgs,
             outputSchema: FIX_outputArgs,
             annotations: {
-                title: 'Safe logMessage',
+                title: 'Safe Chat Message',
                 readOnlyHint: true,
                 destructiveHint: false, // 기본값은 true라서 함께 명시해 줘도 좋습니다
                 idempotentHint: true    // 같은 입력 반복 호출해도 영향 없음을 표시

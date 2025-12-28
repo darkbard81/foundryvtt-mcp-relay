@@ -80,6 +80,9 @@ export async function createAudioTTS(message: string, temperature: number, style
         case StyleTone.Hitomi:
             conversionStyleTone = 'Read aloud in a breathlessly rising, as if lifting something overwhelmingly heavy tone:';
             break;
+        case StyleTone.Normal:
+            conversionStyleTone = '';
+            break;
         default:
             conversionStyleTone = `Read aloud in ${styleTone} tone:`;
             break;

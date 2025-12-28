@@ -10,6 +10,7 @@ import { wsRoutes } from "./routes/websocket.js";
 import { widgetAvWsRoutes } from "./routes/widgetAvWs.js";
 import { log } from "./utils/logger.js";
 import { authenticateMCP, createPayloadDedupeMiddleware, registerOAuthRoutes } from "./oAuth.js";
+import { randomUUID } from "crypto"
 
 // === 인스턴스 준비: MCP + 환경 필수값 확인 ===
 const server = new McpServer({
@@ -73,29 +74,29 @@ widgetAvWsRoutes(widgetAvWss);
 
 // === upgrade 라우팅 ===
 httpServer.on("upgrade", (req, socket, head) => {
-  try {
-    const url = new URL(req.url ?? "", `http://${req.headers.host}`);
-    const pathname = url.pathname;
-    log.info(`HttpServer Upgrage from ${pathname}`);
+    try {
+        const url = new URL(req.url ?? "", `http://${req.headers.host}`);
+        const pathname = url.pathname;
+        log.info(`HttpServer Upgrage from ${pathname}`);
 
-    if (pathname === cfg.WS_PATH) {
-      relayWss.handleUpgrade(req, socket, head, (ws) => {
-        relayWss.emit("connection", ws, req);
-      });
-      return;
+        if (pathname === cfg.WS_PATH) {
+            relayWss.handleUpgrade(req, socket, head, (ws) => {
+                relayWss.emit("connection", ws, req);
+            });
+            return;
+        }
+
+        if (pathname === cfg.WIDGET_AV_WS_PATH) {
+            widgetAvWss.handleUpgrade(req, socket, head, (ws) => {
+                widgetAvWss.emit("connection", ws, req);
+            });
+            return;
+        }
+
+        socket.destroy();
+    } catch {
+        socket.destroy();
     }
-
-    if (pathname === cfg.WIDGET_AV_WS_PATH) {
-      widgetAvWss.handleUpgrade(req, socket, head, (ws) => {
-        widgetAvWss.emit("connection", ws, req);
-      });
-      return;
-    }
-
-    socket.destroy();
-  } catch {
-    socket.destroy();
-  }
 });
 // === WebSocket 서버 ===
 // const wss = new WebSocketServer({ server: httpServer, path: cfg.WS_PATH });

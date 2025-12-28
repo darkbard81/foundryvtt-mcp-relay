@@ -75,32 +75,171 @@ export const authenticateMCP: RequestHandler = (req, res, next) => {
     return next();
 };
 
-// 직렬화된 요청 해시를 짧은 TTL 동안 기억해 중복 호출을 차단하는 미들웨어
-const dedupeCache = new Map<string, NodeJS.Timeout>();
-export function createPayloadDedupeMiddleware(ttlMs = 10000): RequestHandler {
-    return (req, res, next) => {
+type DedupeCachedResponse = {
+    status: number;
+    body: unknown;
+    isJson: boolean;
+};
+
+type DedupeCacheEntry = {
+    expiresAt: number;
+    timeout: NodeJS.Timeout;
+    response?: DedupeCachedResponse;
+    inFlight?: Promise<void>;
+};
+
+// 직렬화된 요청 해시를 짧은 TTL 동안 기억해, 동일 요청에는 이전 응답을 반환하는 미들웨어
+const dedupeCache = new Map<string, DedupeCacheEntry>();
+export function createPayloadDedupeMiddleware(ttlMs = 10000, waitInFlightMs = 30000): RequestHandler {
+    return async (req, res, next) => {
+        // 1) 중복 처리 대상이 아닌 요청은 빠르게 통과
         // GET/HEAD는 멱등성으로 취급해 패스
         if (req.method === 'GET' || req.method === 'HEAD') {
             return next();
         }
 
+        if (req.body?.method !== "tools/call") {
+            return next();
+        }
+
+        // 2) 요청 특성으로 해시 키 생성 (본문/쿼리/인증 포함)
         // 요청 전체를 직렬화해 해시 키 생성
         const payload = {
             method: req.method,
             url: req.originalUrl,
             body: req.body ?? null,
-            query: req.query ?? null
+            query: req.query ?? null,
+            authorization: typeof req.headers.authorization === 'string' ? req.headers.authorization : null,
         };
         const hash = crypto.createHash('sha256').update(JSON.stringify(payload)).digest('hex');
 
-        if (dedupeCache.has(hash)) {
-            log.warn(`[Middleware] Duplicate payload detected within ${ttlMs}ms window`);
-            return res.status(409).json({ error: 'duplicate_request' });
+        // 3) 캐시된 응답이 있으면 즉시 반환, 없으면 in-flight 종료를 대기
+        const existing = dedupeCache.get(hash);
+        if (existing && existing.expiresAt > Date.now()) {
+            if (existing.response) {
+                log.warn(`[Middleware] Duplicate payload detected within ${ttlMs}ms window (return cached response)`);
+                if (existing.response.isJson) {
+                    return res.status(existing.response.status).json(existing.response.body);
+                }
+                return res.status(existing.response.status).send(existing.response.body as any);
+            }
+
+            if (existing.inFlight) {
+                try {
+                    await Promise.race([
+                        existing.inFlight,
+                        new Promise<void>((_, reject) =>
+                            setTimeout(() => reject(new Error('dedupe_inflight_timeout')), waitInFlightMs)
+                        )
+                    ]);
+                } catch (err) {
+                    log.warn(`[Middleware] Duplicate payload detected but in-flight wait failed: ${err instanceof Error ? err.message : String(err)}`);
+                }
+            }
+
+            const refreshed = dedupeCache.get(hash);
+            if (refreshed && refreshed.expiresAt > Date.now() && refreshed.response) {
+                log.warn(`[Middleware] Duplicate payload detected after wait (return cached response)`);
+                if (refreshed.response.isJson) {
+                    return res.status(refreshed.response.status).json(refreshed.response.body);
+                }
+                return res.status(refreshed.response.status).send(refreshed.response.body as any);
+            }
         }
 
-        // TTL 이후 자동 제거
-        const timeout = setTimeout(() => dedupeCache.delete(hash), ttlMs);
-        dedupeCache.set(hash, timeout);
+        // 4) 최초 요청: 응답을 임시 캡처해 finish 이후에 저장
+        // 최초 요청: 응답을 임시 캡처해 finish 이후에 저장
+        let capturedStatus = 200;
+        const originalStatus = res.status.bind(res);
+        res.status = (code: number) => {
+            capturedStatus = code;
+            return originalStatus(code);
+        };
+
+        const entry: DedupeCacheEntry = {
+            expiresAt: Date.now() + ttlMs,
+            timeout: setTimeout(() => dedupeCache.delete(hash), ttlMs),
+        };
+
+        const inFlight = new Promise<void>((resolve) => {
+            res.once('finish', () => resolve());
+            res.once('close', () => resolve());
+        });
+        entry.inFlight = inFlight;
+
+        let pendingBody: unknown = undefined;
+        let pendingIsJson = true;
+        const streamChunks: Buffer[] = [];
+
+        // 5) JSON/일반 응답 캡처
+        const originalJson = res.json.bind(res);
+        res.json = (body: any) => {
+            pendingBody = body;
+            pendingIsJson = true;
+            return originalJson(body);
+        };
+
+        const originalSend = res.send.bind(res);
+        res.send = (body: any) => {
+            const isJson = typeof body === 'object' && body !== null && !Buffer.isBuffer(body);
+            pendingBody = body;
+            pendingIsJson = isJson;
+            return originalSend(body);
+        };
+
+        // 6) 스트리밍 응답 캡처 (write/end)
+        const originalWrite = res.write.bind(res);
+        res.write = ((chunk: any, encoding?: any, cb?: any) => {
+            if (chunk !== undefined) {
+                const buf = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk, encoding);
+                streamChunks.push(buf);
+            }
+            return originalWrite(chunk, encoding, cb);
+        }) as typeof res.write;
+
+        const originalEnd = res.end.bind(res);
+        res.end = ((chunk?: any, encoding?: any, cb?: any) => {
+            if (chunk !== undefined) {
+                const buf = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk, encoding);
+                streamChunks.push(buf);
+            }
+            return originalEnd(chunk, encoding, cb);
+        }) as typeof res.end;
+
+        dedupeCache.set(hash, entry);
+
+        // 7) 연결 종료/완료 시 캐시 저장 또는 정리
+        res.once('close', () => {
+            if (!entry.response) {
+                clearTimeout(entry.timeout);
+                dedupeCache.delete(hash);
+            }
+        });
+
+        res.once('finish', () => {
+            if (pendingBody === undefined && streamChunks.length > 0) {
+                const buffer = Buffer.concat(streamChunks);
+                const contentType = res.getHeader('content-type');
+                const contentTypeValue = typeof contentType === 'string' ? contentType : Array.isArray(contentType) ? contentType.join(';') : '';
+                if (contentTypeValue.includes('application/json')) {
+                    try {
+                        pendingBody = JSON.parse(buffer.toString('utf8'));
+                        pendingIsJson = true;
+                    } catch {
+                        pendingBody = buffer.toString('utf8');
+                        pendingIsJson = false;
+                    }
+                } else {
+                    pendingBody = buffer;
+                    pendingIsJson = false;
+                }
+            }
+
+            if (pendingBody === undefined) return;
+            entry.response = { status: capturedStatus, body: pendingBody, isJson: pendingIsJson };
+            entry.expiresAt = Date.now() + ttlMs;
+        });
+
         return next();
     };
 }

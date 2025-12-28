@@ -145,7 +145,7 @@ export function registerJournalTools(server: McpServer): void {
         type: z.enum(['text', 'image', 'video']).default('text'), // text, image 등
         title: z.object({
             show: z.boolean().default(false),
-            level: z.number().int().default(1),
+            level: z.number().default(1),
         }).describe('Option for Title'),
         image: z.object({
             caption: z.string().optional(),
@@ -153,7 +153,7 @@ export function registerJournalTools(server: McpServer): void {
         text: z.object({
             content: z.string().optional().describe('HTML'),
             markdown: z.string().optional().describe('Markdown'),
-            format: z.number().int().default(2).describe('1:HTML, 2:Markdown'), // CONST.JOURNAL_ENTRY_PAGE_FORMATS
+            format: z.number().default(2).describe('1:HTML, 2:Markdown'), // CONST.JOURNAL_ENTRY_PAGE_FORMATS
         }).optional(),
         video: z.object({
             controls: z.boolean().optional().default(true),
@@ -190,7 +190,8 @@ export function registerJournalTools(server: McpServer): void {
                 title: 'Safe journal list',
                 readOnlyHint: true,
                 destructiveHint: false,
-                idempotentHint: true
+                idempotentHint: true,
+                openWorldHint: true
             }
         },
         async (args) => {
@@ -231,7 +232,8 @@ export function registerJournalTools(server: McpServer): void {
                 title: 'Safe journal page list',
                 readOnlyHint: true,
                 destructiveHint: false,
-                idempotentHint: true
+                idempotentHint: true,
+                openWorldHint: true
             }
         },
         async (args) => {
@@ -272,7 +274,8 @@ export function registerJournalTools(server: McpServer): void {
                 title: 'Journal page mutation',
                 readOnlyHint: false,
                 destructiveHint: true,
-                idempotentHint: false
+                idempotentHint: false,
+                openWorldHint: true
             }
         },
         async (args) => {
