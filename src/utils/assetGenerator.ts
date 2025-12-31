@@ -71,22 +71,22 @@ function normalizeUri(rawUrl: string, base = cfg.BASE_URL): string {
  * @param message Text content to synthesize.
  * @returns Absolute URL string for the generated audio, or empty string on failure.
  */
-export async function createAudioTTS(message: string, temperature: number, styleTone: StyleTone, voiceActor: VoiceActor): Promise<string> {
+export async function createAudioTTS(message: string, temperature: number, styleTone: string, voiceActor: VoiceActor): Promise<string> {
     let fileURL = '';
 
     let conversionStyleTone: string = styleTone;
-    // 'Hitomi' 스타일은 별도 처리
-    switch (styleTone) {
-        case StyleTone.Hitomi:
-            conversionStyleTone = 'Read aloud in a breathlessly rising, as if lifting something overwhelmingly heavy tone:';
-            break;
-        case StyleTone.Normal:
-            conversionStyleTone = '';
-            break;
-        default:
-            conversionStyleTone = `Read aloud in ${styleTone} tone:`;
-            break;
-    }
+    // // 'Hitomi' 스타일은 별도 처리
+    // switch (styleTone) {
+    //     case StyleTone.Hitomi:
+    //         conversionStyleTone = 'Read aloud in a breathlessly rising, as if lifting something overwhelmingly heavy tone:';
+    //         break;
+    //     case StyleTone.Normal:
+    //         conversionStyleTone = '';
+    //         break;
+    //     default:
+    //         conversionStyleTone = `Read aloud in ${styleTone} tone:`;
+    //         break;
+    // }
 
     const genAI = getGenAI();
     if (!genAI) {

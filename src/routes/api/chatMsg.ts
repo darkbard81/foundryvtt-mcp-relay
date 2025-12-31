@@ -17,7 +17,7 @@ export function registerChatMsgTools(server: McpServer): void {
         tokenId: z.string().optional(),
         audioTTS: z.boolean().optional().default(false),
         temperature: z.number().min(0).max(2).optional().default(1),
-        styleTone: z.nativeEnum(StyleTone).optional().default(StyleTone.Normal),
+        styleTone: z.string().optional().default('Read aloud in a warm and friendly tone:'),
         voiceActor: z.nativeEnum(VoiceActor).optional().default(VoiceActor.Achernar),
 
     };
