@@ -34,7 +34,7 @@ app.use(express.json());
 registerOAuthRoutes(app);
 
 // 중복 payload 재실행 방지용 간단 멱등 미들웨어 (짧은 TTL)
-const dedupeMiddleware = createPayloadDedupeMiddleware(10000);
+const dedupeMiddleware = createPayloadDedupeMiddleware(20000);
 
 app.post(cfg.MCP_PATH, dedupeMiddleware, authenticateMCP, async (req, res) => {
     log.debug(`[MCP] Incoming POST ${req.originalUrl} body=${JSON.stringify(req.body ?? {})}`);

@@ -90,7 +90,7 @@ type DedupeCacheEntry = {
 
 // 직렬화된 요청 해시를 짧은 TTL 동안 기억해, 동일 요청에는 이전 응답을 반환하는 미들웨어
 const dedupeCache = new Map<string, DedupeCacheEntry>();
-export function createPayloadDedupeMiddleware(ttlMs = 10000, waitInFlightMs = 30000): RequestHandler {
+export function createPayloadDedupeMiddleware(ttlMs = 20000, waitInFlightMs = 30000): RequestHandler {
     return async (req, res, next) => {
         // 1) 중복 처리 대상이 아닌 요청은 빠르게 통과
         // GET/HEAD는 멱등성으로 취급해 패스
