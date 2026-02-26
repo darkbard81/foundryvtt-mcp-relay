@@ -74,7 +74,7 @@ function normalizeUri(rawUrl: string, base = cfg.BASE_URL): string {
 export async function createAudioTTS(message: string, temperature: number, styleTone: string, voiceActor: VoiceActor): Promise<string> {
     let fileURL = '';
 
-    let conversionStyleTone: string = styleTone;
+    // let conversionStyleTone: string = styleTone;
     // // 'Hitomi' 스타일은 별도 처리
     // switch (styleTone) {
     //     case StyleTone.Hitomi:
@@ -88,85 +88,85 @@ export async function createAudioTTS(message: string, temperature: number, style
     //         break;
     // }
 
-    const genAI = getGenAI();
-    if (!genAI) {
-        log.info('Google GenAI client is not initialized.');
-        return fileURL;
-    }
+    // const genAI = getGenAI();
+    // if (!genAI) {
+    //     log.info('Google GenAI client is not initialized.');
+    //     return fileURL;
+    // }
 
-    const config = {
-        temperature: temperature,
-        responseModalities: [
-            'audio',
-        ],
-        speechConfig: {
-            voiceConfig: {
-                prebuiltVoiceConfig: {
-                    voiceName: voiceActor,
-                }
-            }
-        },
-    };
-    const model = cfg.AUDIO_MODEL;
-    const contents = [
-        {
-            role: 'user',
-            parts: [
-                {
-                    text: `${conversionStyleTone} ${message}`,
-                },
-            ],
-        },
-    ];
+    // const config = {
+    //     temperature: temperature,
+    //     responseModalities: [
+    //         'audio',
+    //     ],
+    //     speechConfig: {
+    //         voiceConfig: {
+    //             prebuiltVoiceConfig: {
+    //                 voiceName: voiceActor,
+    //             }
+    //         }
+    //     },
+    // };
+    // const model = cfg.AUDIO_MODEL;
+    // const contents = [
+    //     {
+    //         role: 'user',
+    //         parts: [
+    //             {
+    //                 text: `${conversionStyleTone} ${message}`,
+    //             },
+    //         ],
+    //     },
+    // ];
 
-    const response = await genAI.models.generateContentStream({
-        model,
-        config,
-        contents,
-    });
+    // const response = await genAI.models.generateContentStream({
+    //     model,
+    //     config,
+    //     contents,
+    // });
 
-    const filePath = crypto.randomUUID();
-    const collectedBuffers: Buffer[] = [];
-    let collectedMimeType = '';
+    // const filePath = crypto.randomUUID();
+    // const collectedBuffers: Buffer[] = [];
+    // let collectedMimeType = '';
 
-    // 스트리밍 청크를 모두 모아서 한 번에 파일로 저장
-    for await (const chunk of response) {
-        if (!chunk.candidates || !chunk.candidates[0].content || !chunk.candidates[0].content.parts) {
-            continue;
-        }
-        if (chunk.candidates?.[0]?.content?.parts?.[0]?.inlineData) {
-            const inlineData = chunk.candidates[0].content.parts[0].inlineData;
-            collectedMimeType ||= inlineData.mimeType || '';
-            const buffer = Buffer.from(inlineData.data || '', 'base64');
-            collectedBuffers.push(buffer);
-        }
-        else {
-            log.error('failed to get audio data from TTS response chunk');
-        }
-    }
+    // // 스트리밍 청크를 모두 모아서 한 번에 파일로 저장
+    // for await (const chunk of response) {
+    //     if (!chunk.candidates || !chunk.candidates[0].content || !chunk.candidates[0].content.parts) {
+    //         continue;
+    //     }
+    //     if (chunk.candidates?.[0]?.content?.parts?.[0]?.inlineData) {
+    //         const inlineData = chunk.candidates[0].content.parts[0].inlineData;
+    //         collectedMimeType ||= inlineData.mimeType || '';
+    //         const buffer = Buffer.from(inlineData.data || '', 'base64');
+    //         collectedBuffers.push(buffer);
+    //     }
+    //     else {
+    //         log.error('failed to get audio data from TTS response chunk');
+    //     }
+    // }
 
-    if (!collectedBuffers.length) {
-        log.error('failed to collect audio data from TTS response');
-        return fileURL;
-    }
+    // if (!collectedBuffers.length) {
+    //     log.error('failed to collect audio data from TTS response');
+    //     return fileURL;
+    // }
 
-    const combinedBuffer = Buffer.concat(collectedBuffers);
-    let fileExtension = mime.getExtension(collectedMimeType || '');
-    let fileData: Buffer<ArrayBufferLike> = combinedBuffer;
+    // const combinedBuffer = Buffer.concat(collectedBuffers);
+    // let fileExtension = mime.getExtension(collectedMimeType || '');
+    // let fileData: Buffer<ArrayBufferLike> = combinedBuffer;
 
-    if (!fileExtension) {
-        fileExtension = 'wav';
-        fileData = convertToWav(combinedBuffer.toString('base64'), collectedMimeType || '');
-    }
+    // if (!fileExtension) {
+    //     fileExtension = 'wav';
+    //     fileData = convertToWav(combinedBuffer.toString('base64'), collectedMimeType || '');
+    // }
 
-    const fileName = `${filePath}.${fileExtension}`;
-    const audioDir = path.join(process.cwd(), cfg.FOUNDRY_DATA_PATH, cfg.AUDIO_OUTPUT_DIR);
+    // const fileName = `${filePath}.${fileExtension}`;
+    // const audioDir = path.join(process.cwd(), cfg.FOUNDRY_DATA_PATH, cfg.AUDIO_OUTPUT_DIR);
 
-    saveBinaryFile(`${audioDir}/${fileName}`, fileData);
-    fileURL = cfg.FOUNDRY_DATA_PATH === ''
-        ? normalizeUri(`${cfg.AUDIO_PATH}/${fileName}`)
-        : path.join(cfg.AUDIO_OUTPUT_DIR, fileName);
-    log.info(`Audio TTS file saved: ${fileURL}`);
+    // saveBinaryFile(`${audioDir}/${fileName}`, fileData);
+    // fileURL = cfg.FOUNDRY_DATA_PATH === ''
+    //     ? normalizeUri(`${cfg.AUDIO_PATH}/${fileName}`)
+    //     : path.join(cfg.AUDIO_OUTPUT_DIR, fileName);
+    // log.info(`Audio TTS file saved: ${fileURL}`);
 
     return fileURL;
 }
@@ -258,105 +258,105 @@ function createWavHeader(dataLength: number, options: WavConversionOptions): Buf
 
 export async function createImageGen(message: string, temperature: number, convURL: boolean, aspectRatio?: AspectRatio): Promise<string> {
     let fileURL = '';
-    let aspectRatio_lo: AspectRatio = aspectRatio ?? AspectRatio.R2_3;
+    // let aspectRatio_lo: AspectRatio = aspectRatio ?? AspectRatio.R2_3;
 
-    const genAI = getGenAI();
-    if (!genAI) {
-        log.warn('Image generation skipped: Google GenAI client not initialized.');
-        return fileURL;
-    }
+    // const genAI = getGenAI();
+    // if (!genAI) {
+    //     log.warn('Image generation skipped: Google GenAI client not initialized.');
+    //     return fileURL;
+    // }
 
-    const config = {
-        temperature: temperature,
-        maxOutputTokens: 1290,
-        topP: 0.95,
-        responseModalities: [
-            'IMAGE',
-            // 'TEXT',
-        ],
-        imageConfig: {
-            aspectRatio: `${aspectRatio_lo}`,
-        },
-        systemInstruction: [
-            {
-                text: `for TRPG Image`,
-            }
-        ],
-    };
-    const model = cfg.IMAGE_MODEL;
-    const contents = [
-        {
-            role: 'user',
-            parts: [
-                {
-                    text: `${message}`,
-                },
-            ],
-        },
-    ];
+    // const config = {
+    //     temperature: temperature,
+    //     maxOutputTokens: 1290,
+    //     topP: 0.95,
+    //     responseModalities: [
+    //         'IMAGE',
+    //         // 'TEXT',
+    //     ],
+    //     imageConfig: {
+    //         aspectRatio: `${aspectRatio_lo}`,
+    //     },
+    //     systemInstruction: [
+    //         {
+    //             text: `for TRPG Image`,
+    //         }
+    //     ],
+    // };
+    // const model = cfg.IMAGE_MODEL;
+    // const contents = [
+    //     {
+    //         role: 'user',
+    //         parts: [
+    //             {
+    //                 text: `${message}`,
+    //             },
+    //         ],
+    //     },
+    // ];
 
-    let response;
-    try {
-        response = await genAI.models.generateContentStream({ model, config, contents });
-    } catch (err) {
-        log.error(`Image generation failed: ${err instanceof Error ? err.message : String(err)}`);
-        return fileURL;
-    }
+    // let response;
+    // try {
+    //     response = await genAI.models.generateContentStream({ model, config, contents });
+    // } catch (err) {
+    //     log.error(`Image generation failed: ${err instanceof Error ? err.message : String(err)}`);
+    //     return fileURL;
+    // }
 
-    const filePath = crypto.randomUUID();
-    const collectedBuffers: Buffer[] = [];
-    let collectedMimeType = '';
+    // const filePath = crypto.randomUUID();
+    // const collectedBuffers: Buffer[] = [];
+    // let collectedMimeType = '';
 
-    // 스트리밍 청크를 모두 모아서 한 번에 파일로 저장
-    for await (const chunk of response) {
-        if (!chunk.candidates || !chunk.candidates[0].content || !chunk.candidates[0].content.parts) {
-            continue;
-        }
-        if (chunk.candidates?.[0]?.content?.parts?.[0]?.inlineData) {
-            const inlineData = chunk.candidates[0].content.parts[0].inlineData;
-            collectedMimeType ||= inlineData.mimeType || '';
-            const buffer = Buffer.from(inlineData.data || '', 'base64');
-            collectedBuffers.push(buffer);
-        }
-        else {
-            log.warn(`Image generation chunk text: ${chunk.text}`);
-        }
-    }
+    // // 스트리밍 청크를 모두 모아서 한 번에 파일로 저장
+    // for await (const chunk of response) {
+    //     if (!chunk.candidates || !chunk.candidates[0].content || !chunk.candidates[0].content.parts) {
+    //         continue;
+    //     }
+    //     if (chunk.candidates?.[0]?.content?.parts?.[0]?.inlineData) {
+    //         const inlineData = chunk.candidates[0].content.parts[0].inlineData;
+    //         collectedMimeType ||= inlineData.mimeType || '';
+    //         const buffer = Buffer.from(inlineData.data || '', 'base64');
+    //         collectedBuffers.push(buffer);
+    //     }
+    //     else {
+    //         log.warn(`Image generation chunk text: ${chunk.text}`);
+    //     }
+    // }
 
-    if (!collectedBuffers.length) {
-        log.error('Image generation failed: no image data collected from response.');
-        return fileURL;
-    }
+    // if (!collectedBuffers.length) {
+    //     log.error('Image generation failed: no image data collected from response.');
+    //     return fileURL;
+    // }
 
-    const combinedBuffer = Buffer.concat(collectedBuffers);
-    let fileExtension = mime.getExtension(collectedMimeType || '');
+    // const combinedBuffer = Buffer.concat(collectedBuffers);
+    // let fileExtension = mime.getExtension(collectedMimeType || '');
 
-    let fileData: Buffer<ArrayBufferLike> =
-        await sharp(combinedBuffer)
-            .ensureAlpha()
-            .webp({
-                quality: 85,
-                alphaQuality: 100,
-                smartSubsample: false,
-                effort: 5,
-                preset: 'picture',
-            }).toBuffer();
+    // let fileData: Buffer<ArrayBufferLike> =
+    //     await sharp(combinedBuffer)
+    //         .ensureAlpha()
+    //         .webp({
+    //             quality: 85,
+    //             alphaQuality: 100,
+    //             smartSubsample: false,
+    //             effort: 5,
+    //             preset: 'picture',
+    //         }).toBuffer();
 
-    fileExtension = 'webp';
+    // fileExtension = 'webp';
 
-    const fileName = `${filePath}.${fileExtension}`;
-    const imageDir = path.join(process.cwd(), cfg.FOUNDRY_DATA_PATH, cfg.IMAGE_OUTPUT_DIR);
+    // const fileName = `${filePath}.${fileExtension}`;
+    // const imageDir = path.join(process.cwd(), cfg.FOUNDRY_DATA_PATH, cfg.IMAGE_OUTPUT_DIR);
 
-    saveBinaryFile(`${imageDir}/${fileName}`, fileData);
+    // saveBinaryFile(`${imageDir}/${fileName}`, fileData);
 
-    if (convURL) {
-        fileURL = normalizeUri(`${cfg.IMAGE_PATH}/${fileName}`);
-    } else {
-        fileURL = cfg.FOUNDRY_DATA_PATH === ''
-            ? normalizeUri(`${cfg.IMAGE_PATH}/${fileName}`)
-            : path.join(cfg.IMAGE_OUTPUT_DIR, fileName);
-    };
-    log.info(`Image Gen file saved: ${fileURL}`);
+    // if (convURL) {
+    //     fileURL = normalizeUri(`${cfg.IMAGE_PATH}/${fileName}`);
+    // } else {
+    //     fileURL = cfg.FOUNDRY_DATA_PATH === ''
+    //         ? normalizeUri(`${cfg.IMAGE_PATH}/${fileName}`)
+    //         : path.join(cfg.IMAGE_OUTPUT_DIR, fileName);
+    // };
+    // log.info(`Image Gen file saved: ${fileURL}`);
 
     return fileURL;
 }

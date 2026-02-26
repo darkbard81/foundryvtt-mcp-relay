@@ -61,6 +61,12 @@ export const authenticateMCP: RequestHandler = (req, res, next) => {
         return res.status(401).json({ error: 'Access token required' });
     }
 
+    if (token === cfg.API_KEY) {
+        (req as any).token = token;
+        (req as any).user = 'admin';
+        return next();
+    }
+
     const match = Array.from(tokenCache.values()).find(
         (entry: any) => typeof entry?.access_token === 'string' && entry.access_token === token
     );
